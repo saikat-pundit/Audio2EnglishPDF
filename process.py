@@ -14,9 +14,24 @@ def extract_file_id(link):
         return match.group(1)
     raise ValueError("Could not extract file ID from Google Drive link")
 
+def get_original_filename(file_id):
+    url = f"https://drive.google.com/uc?export=download&id={file_id}"
+    try:
+        import requests
+        response = requests.head(url, allow_redirects=True)
+        if 'Content-Disposition' in response.headers:
+            filename_match = re.search(r'filename="(.+?)"', response.headers['Content-Disposition'])
+            if filename_match:
+                return filename_match.group(1)
+    except:
+        pass
+    return None
+
 def download_from_gdrive(link, output_path):
     file_id = extract_file_id(link)
     gdown.download(id=file_id, output=output_path, quiet=False)
+    original_name = get_original_filename(file_id)
+    return original_name
 
 def convert_m4a_to_wav(m4a_path, wav_path):
     audio = AudioSegment.from_file(m4a_path, format="m4a")
@@ -54,9 +69,14 @@ def main():
     drive_link = sys.argv[1]
     m4a_file = "input.m4a"
     wav_file = "input.wav"
-    pdf_file = "output.pdf"
     print("Downloading from Google Drive...")
-    download_from_gdrive(drive_link, m4a_file)
+    original_name = download_from_gdrive(drive_link, m4a_file)
+    if original_name:
+        base = os.path.splitext(original_name)[0]
+        pdf_file = f"{base}.pdf"
+    else:
+        pdf_file = "output.pdf"
+    print(f"Output PDF will be: {pdf_file}")
     print("Converting M4A to WAV...")
     convert_m4a_to_wav(m4a_file, wav_file)
     print("Transcribing with Whisper (Hindi+English)...")
