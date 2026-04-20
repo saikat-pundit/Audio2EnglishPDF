@@ -1,0 +1,43 @@
+name: Audio to English PDF
+
+on:
+  workflow_dispatch:
+    inputs:
+      drive_link:
+        description: 'Google Drive shareable link to M4A file'
+        required: true
+        type: string
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Install Python packages
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run the transcription and PDF creation
+        run: python process.py "${{ github.event.inputs.drive_link }}"
+
+      - name: Create Release and upload PDF
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: output-${{ github.run_id }}
+          name: Processed output ${{ github.run_id }}
+          files: output.pdf
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
