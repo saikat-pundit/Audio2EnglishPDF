@@ -1,7 +1,9 @@
-seamless_communication
+openai-whisper
 torch
 torchaudio
 ffmpeg-python
 gdown
 reportlab
 pydub
+transformers
+sentencepiece
