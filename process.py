@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import gdown
 import whisper
 from pydub import AudioSegment
@@ -7,8 +8,15 @@ from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 
+def extract_file_id(link):
+    match = re.search(r'/d/([a-zA-Z0-9_-]+)', link)
+    if match:
+        return match.group(1)
+    raise ValueError("Could not extract file ID from Google Drive link")
+
 def download_from_gdrive(link, output_path):
-    gdown.download(link, output_path, quiet=False, fuzzy=True)
+    file_id = extract_file_id(link)
+    gdown.download(id=file_id, output=output_path, quiet=False)
 
 def convert_m4a_to_wav(m4a_path, wav_path):
     audio = AudioSegment.from_file(m4a_path, format="m4a")
