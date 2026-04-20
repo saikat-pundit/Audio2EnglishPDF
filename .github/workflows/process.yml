@@ -3,8 +3,8 @@ name: "Audio to English PDF"
 on:
   workflow_dispatch:
     inputs:
-      drive_link:
-        description: "Google Drive shareable link to M4A file"
+      drive_links:
+        description: "Google Drive shareable link(s) – separate multiple links with commas"
         required: true
         type: string
 
@@ -49,10 +49,19 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run the transcription and PDF creation
-        run: python process.py "${{ github.event.inputs.drive_link }}"
+      - name: Process each link
+        env:
+          LINKS: ${{ github.event.inputs.drive_links }}
+        run: |
+          IFS=',' read -ra ADDR <<< "$LINKS"
+          for link in "${ADDR[@]}"; do
+            # Trim whitespace
+            link=$(echo "$link" | xargs)
+            echo "Processing: $link"
+            python process.py "$link" || echo "Warning: Failed to process $link, continuing..."
+          done
 
-      - name: Create or update Release and upload PDF
+      - name: Create or update Release and upload all PDFs
         uses: softprops/action-gh-release@v1
         with:
           tag_name: output-pdfs
