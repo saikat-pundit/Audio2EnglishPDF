@@ -5,9 +5,11 @@ import gdown
 import whisper
 from pydub import AudioSegment
 from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_JUSTIFY
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
 from reportlab.lib.units import inch
+from reportlab.pdfgen import canvas
 
 def extract_file_id(link):
     match = re.search(r'/d/([a-zA-Z0-9_-]+)', link)
@@ -39,22 +41,50 @@ def convert_m4a_to_wav(m4a_path, wav_path):
     audio.export(wav_path, format="wav")
 
 def transcribe_and_translate_to_english(wav_path):
-    model = whisper.load_model("base")
+    model = whisper.load_model("large")
     result = model.transcribe(wav_path, language=None, task="translate")
     return result["text"]
 
-def create_pdf(text, pdf_path):
+def add_header_footer(canvas, doc, filename):
+    canvas.saveState()
+    header_text = f"{filename} | Page {doc.page}"
+    canvas.setFont('Helvetica-Bold', 10)
+    canvas.drawCentredString(letter[0]/2.0, letter[1] - 20, header_text)
+    canvas.restoreState()
+
+def create_pdf(text, pdf_path, audio_filename):
     if not text or len(text.strip()) == 0:
         raise ValueError("Cannot create PDF: No text content to write.")
-    doc = SimpleDocTemplate(pdf_path, pagesize=letter)
+    
+    doc = SimpleDocTemplate(pdf_path, pagesize=letter,
+                            topMargin=50, bottomMargin=50,
+                            leftMargin=50, rightMargin=50)
+    
     styles = getSampleStyleSheet()
-    style = styles['Normal']
+    style_normal = ParagraphStyle(
+        'JustifiedNormal',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=12,
+        leading=18,
+        alignment=TA_JUSTIFY,
+        spaceAfter=6
+    )
+    
     story = []
     for para in text.split('\n'):
         if para.strip():
-            story.append(Paragraph(para, style))
-            story.append(Spacer(1, 0.2*inch))
-    doc.build(story)
+            story.append(Paragraph(para, style_normal))
+            story.append(Spacer(1, 0.1*inch))
+    
+    def header_footer(canvas, doc):
+        canvas.saveState()
+        header_text = f"{audio_filename} | Page {doc.page}"
+        canvas.setFont('Helvetica-Bold', 10)
+        canvas.drawCentredString(letter[0]/2.0, letter[1] - 20, header_text)
+        canvas.restoreState()
+    
+    doc.build(story, onFirstPage=header_footer, onLaterPages=header_footer)
 
 def main():
     if len(sys.argv) != 2:
@@ -68,18 +98,20 @@ def main():
     if original_name:
         base = os.path.splitext(original_name)[0]
         pdf_file = f"{base}.pdf"
+        display_name = original_name
     else:
         pdf_file = "output.pdf"
+        display_name = "audio_file"
     print(f"Output PDF will be: {pdf_file}")
     print("Converting M4A to WAV...")
     convert_m4a_to_wav(m4a_file, wav_file)
-    print("Transcribing and translating to English (auto language detection)...")
+    print("Transcribing and translating to English using Whisper large model...")
     english_text = transcribe_and_translate_to_english(wav_file)
     if not english_text:
         print("ERROR: Transcription returned empty text.")
         sys.exit(1)
-    print("Creating PDF...")
-    create_pdf(english_text, pdf_file)
+    print("Creating PDF with formatted headers and justified text...")
+    create_pdf(english_text, pdf_file, display_name)
     print(f"Done. PDF saved as {pdf_file}")
 
 if __name__ == "__main__":
