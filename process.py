@@ -1,9 +1,9 @@
 import os
 import sys
 import gdown
+import whisper
 from pydub import AudioSegment
-import torch
-from seamless_communication import load_model, load_processor
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 
@@ -14,13 +14,18 @@ def convert_m4a_to_wav(m4a_path, wav_path):
     audio = AudioSegment.from_file(m4a_path, format="m4a")
     audio.export(wav_path, format="wav")
 
-def transcribe_and_translate(wav_path):
-    model = load_model("seamlessM4T_large", device="cuda" if torch.cuda.is_available() else "cpu")
-    processor = load_processor("seamlessM4T_large")
-    audio_input, sample_rate = torchaudio.load(wav_path)
-    audio_input = audio_input.mean(dim=0)  
-    text_output = model.generate(audio_input, task="s2tt", tgt_lang="eng")
-    return text_output[0]["text"]
+def transcribe_with_whisper(wav_path):
+    model = whisper.load_model("base")
+    result = model.transcribe(wav_path, language="hi", task="transcribe")
+    return result["text"]
+
+def translate_hindi_to_english(hindi_text):
+    tokenizer = AutoTokenizer.from_pretrained("Helsinki-NLP/opus-mt-hi-en")
+    model = AutoModelForSeq2SeqLM.from_pretrained("Helsinki-NLP/opus-mt-hi-en")
+    inputs = tokenizer(hindi_text, return_tensors="pt", truncation=True, max_length=512)
+    translated = model.generate(**inputs, max_length=512)
+    english_text = tokenizer.decode(translated[0], skip_special_tokens=True)
+    return english_text
 
 def create_pdf(text, pdf_path):
     c = canvas.Canvas(pdf_path, pagesize=letter)
@@ -46,8 +51,10 @@ def main():
     download_from_gdrive(drive_link, m4a_file)
     print("Converting M4A to WAV...")
     convert_m4a_to_wav(m4a_file, wav_file)
-    print("Running SeamlessM4T (this may take a while)...")
-    english_text = transcribe_and_translate(wav_file)
+    print("Transcribing with Whisper (Hindi+English)...")
+    hindi_mixed_text = transcribe_with_whisper(wav_file)
+    print("Translating Hindi portions to English...")
+    english_text = translate_hindi_to_english(hindi_mixed_text)
     print("Creating PDF...")
     create_pdf(english_text, pdf_file)
     print(f"Done. PDF saved as {pdf_file}")
