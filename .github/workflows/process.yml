@@ -52,11 +52,12 @@ jobs:
       - name: Run the transcription and PDF creation
         run: python process.py "${{ github.event.inputs.drive_link }}"
 
-      - name: Create Release and upload PDF
+      - name: Create or update Release and upload PDF
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: output-${{ github.run_id }}
-          name: "Processed output ${{ github.run_id }}"
+          tag_name: output-pdfs
+          name: "Output PDF Files"
           files: "*.pdf"
+          make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
