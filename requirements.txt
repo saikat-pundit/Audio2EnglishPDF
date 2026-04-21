@@ -15,3 +15,5 @@ torchaudio
 markdown
 pdfkit
 requests
+addict
+matplotlib
