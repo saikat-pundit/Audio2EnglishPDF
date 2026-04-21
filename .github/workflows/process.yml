@@ -16,6 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -66,6 +67,8 @@ jobs:
             whisper-large-${{ runner.os }}
           
       - name: Process all links in parallel
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: python process.py "${{ github.event.inputs.drive_links }}"
 
       - name: Create or update Release and upload all PDFs
