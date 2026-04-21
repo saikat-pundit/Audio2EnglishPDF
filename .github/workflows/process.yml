@@ -65,17 +65,8 @@ jobs:
           restore-keys: |
             whisper-large-${{ runner.os }}
           
-      - name: Process each link
-        env:
-          LINKS: ${{ github.event.inputs.drive_links }}
-        run: |
-          IFS=',' read -ra ADDR <<< "$LINKS"
-          for link in "${ADDR[@]}"; do
-            # Trim whitespace
-            link=$(echo "$link" | xargs)
-            echo "Processing: $link"
-            python process.py "$link" || echo "Warning: Failed to process $link, continuing..."
-          done
+      - name: Process all links in parallel
+        run: python process.py "${{ github.event.inputs.drive_links }}"
 
       - name: Create or update Release and upload all PDFs
         uses: softprops/action-gh-release@v3
