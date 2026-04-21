@@ -14,6 +14,8 @@ permissions:
 jobs:
   process:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -30,7 +32,7 @@ jobs:
           python-version: "3.10"
 
       - name: Cache pip packages
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
@@ -38,7 +40,7 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Cache Hugging Face models
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/huggingface
           key: ${{ runner.os }}-huggingface-${{ hashFiles('process.py') }}
@@ -56,7 +58,7 @@ jobs:
           pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
           pip install -r requirements.txt
       - name: Cache Whisper model
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: ~/.cache/whisper
           key: whisper-large-${{ runner.os }}
@@ -76,7 +78,7 @@ jobs:
           done
 
       - name: Create or update Release and upload all PDFs
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: output-pdfs
           name: "Output PDF Files"
