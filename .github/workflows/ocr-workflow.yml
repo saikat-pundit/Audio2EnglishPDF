@@ -1,4 +1,4 @@
-name: "DeepSeek OCR PDF Processor"
+name: "Image to Text/PDF"
 
 on:
   workflow_dispatch:
