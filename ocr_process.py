@@ -2,6 +2,7 @@ import os
 import sys
 import re
 import gdown
+import subprocess
 from PIL import Image
 from pdf2image import convert_from_path
 from transformers import AutoModel, AutoTokenizer
@@ -33,16 +34,26 @@ def download_from_gdrive(link, output_path):
     gdown.download(id=file_id, output=output_path, quiet=False)
     return get_original_filename(file_id)
 
-def convert_pdf_to_images(pdf_path, output_folder="pdf_images"):
+def convert_pdf_to_images_fallback(pdf_path, output_folder="pdf_images"):
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
-    images = convert_from_path(pdf_path)
-    image_paths = []
-    for i, image in enumerate(images):
-        img_path = os.path.join(output_folder, f"page_{i+1}.png")
-        image.save(img_path, "PNG")
-        image_paths.append(img_path)
-    return image_paths
+    try:
+        images = convert_from_path(pdf_path)
+        image_paths = []
+        for i, image in enumerate(images):
+            img_path = os.path.join(output_folder, f"page_{i+1}.png")
+            image.save(img_path, "PNG")
+            image_paths.append(img_path)
+        return image_paths
+    except Exception as e:
+        print(f"pdf2image failed: {e}. Trying pdftoppm fallback...")
+        base = os.path.join(output_folder, "page")
+        subprocess.run(["pdftoppm", "-png", pdf_path, base], check=True)
+        image_paths = []
+        for f in sorted(os.listdir(output_folder)):
+            if f.endswith(".png"):
+                image_paths.append(os.path.join(output_folder, f))
+        return image_paths
 
 def perform_ocr_on_image(image_path, model, processor):
     image = Image.open(image_path)
@@ -68,10 +79,9 @@ def main():
         os.rename(temp_file, original_name)
         temp_file = original_name
 
-    image_paths = []
     if temp_file.lower().endswith('.pdf'):
         print("PDF detected. Converting to images...")
-        image_paths = convert_pdf_to_images(temp_file)
+        image_paths = convert_pdf_to_images_fallback(temp_file)
         base_name = os.path.splitext(os.path.basename(temp_file))[0]
         pdf_output_name = f"{base_name}_extracted_text.pdf"
     else:
@@ -97,6 +107,9 @@ def main():
             os.remove(img_path)
     if os.path.exists(temp_file):
         os.remove(temp_file)
+    if os.path.exists("pdf_images"):
+        import shutil
+        shutil.rmtree("pdf_images")
 
     combined_markdown = "\n\n".join(all_markdown_text)
     html = markdown.markdown(combined_markdown)
