@@ -19,10 +19,10 @@ def extract_file_id(link):
     raise ValueError("Could not extract file ID from Google Drive link")
 
 def download_from_gdrive(link, output_path):
-    """Download a file from Google Drive using its shareable link."""
     file_id = extract_file_id(link)
     gdown.download(id=file_id, output=output_path, quiet=False)
-    return output_path
+    original_name = get_original_filename(file_id)
+    return original_name
 
 def convert_pdf_to_images(pdf_path, output_folder="pdf_images"):
     """Convert each page of a PDF to an image."""
@@ -58,21 +58,26 @@ def main():
     
     # 1. Download the file
     print("Downloading file from Google Drive...")
-    temp_file = "input_file"
-    download_from_gdrive(drive_link, temp_file)
-    
-    # Determine file type and convert if necessary
-    image_paths = []
-    if temp_file.lower().endswith('.pdf'):
-        print("PDF detected. Converting to images...")
-        image_paths = convert_pdf_to_images(temp_file)
-        base_name = os.path.splitext(os.path.basename(temp_file))[0]
-        pdf_output_name = f"{base_name}_extracted_text.pdf"
-    else:  # Assume it's an image
-        print("Image detected. Processing directly...")
-        image_paths = [temp_file]
-        base_name = os.path.splitext(os.path.basename(temp_file))[0]
-        pdf_output_name = f"{base_name}_ocr_output.pdf"
+    # Download and get original filename
+original_name = download_from_gdrive(drive_link, "temp_download")
+temp_file = "temp_download"
+# Rename to original name if possible
+if original_name:
+    os.rename(temp_file, original_name)
+    temp_file = original_name
+
+# Determine file type by extension
+image_paths = []
+if temp_file.lower().endswith('.pdf'):
+    print("PDF detected. Converting to images...")
+    image_paths = convert_pdf_to_images(temp_file)
+    base_name = os.path.splitext(os.path.basename(temp_file))[0]
+    pdf_output_name = f"{base_name}_extracted_text.pdf"
+else:
+    print("Image detected. Processing directly...")
+    image_paths = [temp_file]
+    base_name = os.path.splitext(os.path.basename(temp_file))[0]
+    pdf_output_name = f"{base_name}_ocr_output.pdf"
     
     # 2. Load DeepSeek-OCR model (only once, but for simplicity, we load it here)
     print("Loading DeepSeek-OCR model (this may take a while on first run)...")
